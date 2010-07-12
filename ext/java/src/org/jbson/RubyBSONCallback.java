@@ -34,6 +34,7 @@ public class RubyBSONCallback implements BSONCallback {
     public RubyBSONCallback(Ruby runtime) {
       _runtime = runtime;
       _rbclsOrderedHash = _runtime.getClassFromPath( "BSON::OrderedHash" );
+      _rbclsDBRef       = _runtime.getClassFromPath( "BSON::DBRef" );
     }
 
     public RubyHash createHash() {
@@ -82,8 +83,34 @@ public class RubyBSONCallback implements BSONCallback {
 
     public void writeRubyHash(String key, RubyHash hash, IRubyObject obj) {
         RubyString rkey = RubyString.newString(_runtime, key);
-        JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=", new Object[] { (IRubyObject)rkey, obj }, Object.class);
+        if(_rbHashHasKey((RubyHash)obj, "$ref")) {
+           Object[] args = new Object[] { _rbHashGet((RubyHash)obj, "$ref"), _rbHashGet((RubyHash)obj, "$ns") };
+
+           Object result = JavaEmbedUtils.invokeMethod(_runtime, _rbclsDBRef, "new", args, Object.class);
+
+           JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=",
+               new Object[] { (IRubyObject)rkey, (RubyObject)obj }, Object.class);
+        }
+        else {
+          JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=", new Object[] { (IRubyObject)rkey, obj }, Object.class);
+        }
         //hash.op_aset( _runtime.getCurrentContext(), (IRubyObject)rkey, obj);
+    }
+
+    // Helper method for checking whether a Ruby hash has a certain key.
+    private boolean _rbHashHasKey(RubyHash hash, String key) {
+        RubyBoolean b = hash.has_key_p( _runtime.newString( key ) );
+        return b == _runtime.getTrue();
+    }
+
+    // Helper method for getting a value from a Ruby hash.
+    private IRubyObject _rbHashGet(RubyHash hash, Object key) {
+        if (key instanceof String) {
+            return hash.op_aref( _runtime.getCurrentContext(), _runtime.newString((String)key) );
+        }
+        else {
+            return hash.op_aref( _runtime.getCurrentContext(), (RubyObject)key );
+        }
     }
 
     public void writeRubyArray(String key, RubyArray array, IRubyObject obj) {
@@ -229,7 +256,7 @@ public class RubyBSONCallback implements BSONCallback {
     }
 
     public void gotDBRef( String name , String ns , ObjectId id ){
-//        _put( name , new BasicBSONObject( "$ns" , ns ).append( "$id" , id ) );
+        // _put( name , new BasicBSONObject( "$ns" , ns ).append( "$id" , id ) );
     }
 
     // I know that this is horrible. Planning to come up with
