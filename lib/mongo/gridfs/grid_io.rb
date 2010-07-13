@@ -211,7 +211,6 @@ module Mongo
 
     def save_chunk(chunk)
       id = @chunks.insert(chunk)
-      @logger.debug "Saved chunk #{@current_chunk['n']}: Chunk id: #{id} Files id: #{@files_id}" if @logger
     end
 
     def get_chunk(n)
@@ -330,7 +329,6 @@ module Mongo
     end
 
     def to_mongo_object
-      @logger.debug "Saving files with files_id #{@files_id}" if @logger
       h                = BSON::OrderedHash.new
       h['_id']         = @files_id
       h['filename']    = @filename if @filename
@@ -340,7 +338,12 @@ module Mongo
       h['uploadDate']  = @upload_date
       h['aliases']     = @aliases if @aliases
       h['metadata']    = @metadata if @metadata
-      h['md5']         = get_md5
+      begin
+        h['md5']         = get_md5
+      rescue Mongo::OperationFailure => e
+        @logger.info(e)
+        @logger.info "Could not save files object with files_id #{@files_id}" if @logger
+      end
       h.merge!(@custom_attrs)
       h
     end
