@@ -37,6 +37,7 @@ module Mongo
       @chunks  = @db["#{fs_name}.chunks"]
       @fs_name = fs_name
 
+
       @default_query_opts = {:sort => [['filename', 1], ['uploadDate', -1]], :limit => 1}
 
       @files.create_index([['filename', 1], ['uploadDate', -1]])

@@ -65,6 +65,7 @@ module Mongo
       @safe         = opts.delete(:safe) || false
       @local_md5    = Digest::MD5.new if @safe
       @custom_attrs = {}
+      @logger  = @files.db.connection.logger
 
       case @mode
         when 'r' then init_read
@@ -210,7 +211,7 @@ module Mongo
 
     def save_chunk(chunk)
       id = @chunks.insert(chunk)
-      puts "Saved chunk #{@current_chunk['n']}: Chunk id: #{id} Files id: #{@files_id}"
+      @logger.debug "Saved chunk #{@current_chunk['n']}: Chunk id: #{id} Files id: #{@files_id}" if @logger
     end
 
     def get_chunk(n)
@@ -329,7 +330,7 @@ module Mongo
     end
 
     def to_mongo_object
-      puts "Saving files with files_id #{@files_id}"
+      @logger.debug "Saving files with files_id #{@files_id}" if @logger
       h                = BSON::OrderedHash.new
       h['_id']         = @files_id
       h['filename']    = @filename if @filename
