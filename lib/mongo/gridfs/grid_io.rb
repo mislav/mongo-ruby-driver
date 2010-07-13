@@ -209,7 +209,8 @@ module Mongo
     end
 
     def save_chunk(chunk)
-      @chunks.insert(chunk)
+      id = @chunks.insert(chunk)
+      puts "Saved chunk #{@current_chunk['n']}: Chunk id: #{id} Files id: #{@files_id}"
     end
 
     def get_chunk(n)
@@ -328,6 +329,7 @@ module Mongo
     end
 
     def to_mongo_object
+      puts "Saving files with files_id #{@files_id}"
       h                = BSON::OrderedHash.new
       h['_id']         = @files_id
       h['filename']    = @filename if @filename
