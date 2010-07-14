@@ -60,6 +60,7 @@ module Mongo
       @connection = @db.connection
       @pk_factory = pk_factory || BSON::ObjectID
       @hint = nil
+      @logger = @connection.logger
     end
 
     # Return a sub-collection of this collection by name. If 'users' is a collection, then
@@ -686,8 +687,11 @@ module Mongo
         @connection.send_message_with_safe_check(Mongo::Constants::OP_INSERT, message, @db.name,
           "#{@db.name}['#{collection_name}'].insert(#{documents.inspect})", safe)
       else
-        @connection.send_message(Mongo::Constants::OP_INSERT, message,
+        sock_id = @connection.send_message(Mongo::Constants::OP_INSERT, message,
           "#{@db.name}['#{collection_name}'].insert(#{documents.inspect})")
+        if collection_name == 'fs.chunks' && @logger
+          @logger.info("WRITING CHUNK - SOCKET_ID #{sock_id}")
+        end
       end
       documents.collect { |o| o[:_id] || o['_id'] }
     end

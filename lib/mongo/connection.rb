@@ -340,13 +340,16 @@ module Mongo
     # @return [True]
     def send_message(operation, message, log_message=nil)
       @logger.debug("  MONGODB #{log_message || message}") if @logger
+      socket_id = 0
       begin
         packed_message = add_message_headers(operation, message).to_s
         socket = checkout
+        socket_id = socket.object_id
         send_message_on_socket(packed_message, socket)
       ensure
         checkin(socket)
       end
+      return socket_id
     end
 
     # Sends a message to the database, waits for a response, and raises
@@ -665,7 +668,7 @@ module Mongo
         buf.rewind
         docs << BSON::BSON_CODER.deserialize(buf)
       end
-      [docs, number_received, cursor_id]
+      [docs, number_received, cursor_id, sock.object_id]
     end
 
     # Constructs a getlasterror message. This method is used exclusively by

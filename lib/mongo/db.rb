@@ -71,6 +71,7 @@ module Mongo
       @connection = connection
       @strict     = options[:strict]
       @pk_factory = options[:pk]
+      @logger     = @connection.logger
     end
 
     # Authenticate with the given username and password. Note that mongod
@@ -465,6 +466,8 @@ module Mongo
 
       result = Cursor.new(system_command_collection,
         :limit => -1, :selector => selector, :socket => sock).next_document
+
+      @logger.info("COMMAND: #{selector.inspect}. Result: #{result.inspect}") if @logger
 
       if result.nil?
         raise OperationFailure, "Database command '#{selector.keys.first}' failed: returned null."

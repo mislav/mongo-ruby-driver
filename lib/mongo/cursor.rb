@@ -50,6 +50,7 @@ module Mongo
       @socket     = options[:socket]
       @tailable   = options[:tailable] || false
       @batch_size = options[:batch_size] || 0
+      @logger     = @connection.logger
 
       @full_collection_name = "#{@collection.db.name}.#{@collection.name}"
       @cache = []
@@ -337,6 +338,9 @@ module Mongo
       message.put_long(@cursor_id)
       results, @n_received, @cursor_id = @connection.receive_message(Mongo::Constants::OP_GET_MORE, message, "cursor.get_more()", @socket)
       @cache += results
+      if @logger && @selector.keys.include?("filemd5")
+        @logger.info("RESPONSE: #{results.inspect} RECEIVED: #{@n_received} C_ID: #{@cursor_id}")
+      end
       close_cursor_if_query_complete
     end
 
@@ -346,8 +350,12 @@ module Mongo
         false
       else
         message = construct_query_message
-        results, @n_received, @cursor_id = @connection.receive_message(Mongo::Constants::OP_QUERY, message,
+        results, @n_received, @cursor_id, @socket_id = @connection.receive_message(Mongo::Constants::OP_QUERY, message,
             (query_log_message if @connection.logger), @socket)
+      if @logger && @selector.keys.include?("filemd5")
+        @logger.info("RESPONSE: #{results.inspect} RECEIVED: #{@n_received} C_ID: #{@cursor_id} SOCK_ID: #{@socket_id}")
+      end
+
         @cache += results
         @query_run = true
         close_cursor_if_query_complete
