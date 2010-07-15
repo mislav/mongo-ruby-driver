@@ -36,6 +36,7 @@ module Mongo
       @files   = @db["#{fs_name}.files"]
       @chunks  = @db["#{fs_name}.chunks"]
       @fs_name = fs_name
+      @logger  = @files.db.connection.logger
 
 
       @default_query_opts = {:sort => [['filename', 1], ['uploadDate', -1]], :limit => 1}

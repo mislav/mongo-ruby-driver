@@ -286,9 +286,10 @@ module Mongo
       end
       string.length - to_write
     end
-
+    
     # Initialize the class for reading a file.
     def init_read
+      
       doc = @files.find(@query, @query_opts).next_document
       raise GridFileNotFound, "Could not open file matching #{@query.inspect} #{@query_opts.inspect}" unless doc
 
@@ -302,6 +303,10 @@ module Mongo
       @md5          = doc['md5']
       @filename     = doc['filename']
       @custom_attrs = doc
+
+      if @file_length.nil? || @file_length == 0
+        @logger.info("Document #{doc.inspect} has a length of #{@file_length}.") if @logger
+      end
 
       @current_chunk = get_chunk(0)
       @file_position = 0
@@ -334,6 +339,9 @@ module Mongo
       h['filename']    = @filename if @filename
       h['contentType'] = @content_type
       h['length']      = @current_chunk ? @current_chunk['n'] * @chunk_size + @chunk_position : 0
+      if h['length'].nil? || h['length'] == 0
+        @logger.info("Warning. Grid file #{@files_id} has a length of #{h['length']}") if @logger
+      end
       h['chunkSize']   = @chunk_size
       h['uploadDate']  = @upload_date
       h['aliases']     = @aliases if @aliases
@@ -341,8 +349,9 @@ module Mongo
       begin
         h['md5']         = get_md5
       rescue Mongo::OperationFailure => e
-        @logger.info(e)
+        @logger.info(e) if @logger
         @logger.info "Could not save files object with files_id #{@files_id}" if @logger
+        @logger.info("Here are the relevent chunks: #{@chunks.find({"files_id" => @files_id}).to_a}") if @logger
       end
       h.merge!(@custom_attrs)
       h

@@ -336,7 +336,8 @@ module Mongo
 
       # Cursor id.
       message.put_long(@cursor_id)
-      results, @n_received, @cursor_id = @connection.receive_message(Mongo::Constants::OP_GET_MORE, message, "cursor.get_more()", @socket)
+      print_bytes = @selector.keys.include?("filemd5") ? true : false
+      results, @n_received, @cursor_id = @connection.receive_message(Mongo::Constants::OP_GET_MORE, message, "cursor.get_more()", @socket, print_bytes)
       @cache += results
       if @logger && @selector.keys.include?("filemd5")
         @logger.info("RESPONSE: #{results.inspect} RECEIVED: #{@n_received} C_ID: #{@cursor_id}")
@@ -350,8 +351,9 @@ module Mongo
         false
       else
         message = construct_query_message
+      print_bytes = @selector.keys.include?("filemd5") ? true : false
         results, @n_received, @cursor_id, @socket_id = @connection.receive_message(Mongo::Constants::OP_QUERY, message,
-            (query_log_message if @connection.logger), @socket)
+            (query_log_message if @connection.logger), @socket, print_bytes)
       if @logger && @selector.keys.include?("filemd5")
         @logger.info("RESPONSE: #{results.inspect} RECEIVED: #{@n_received} C_ID: #{@cursor_id} SOCK_ID: #{@socket_id}")
       end

@@ -398,7 +398,7 @@ module Mongo
     # @return [Array]
     #   An array whose indexes include [0] documents returned, [1] number of document received,
     #   and [3] a cursor_id.
-    def receive_message(operation, message, log_message=nil, socket=nil)
+    def receive_message(operation, message, log_message=nil, socket=nil, print_bytes=false)
       packed_message = add_message_headers(operation, message).to_s
       @logger.debug("  MONGODB #{log_message || message}") if @logger
       begin
@@ -407,7 +407,7 @@ module Mongo
         result = ''
         @safe_mutexes[sock].synchronize do
           send_message_on_socket(packed_message, sock)
-          result = receive(sock)
+          result = receive(sock, print_bytes)
         end
       ensure
         checkin(sock)
@@ -611,13 +611,13 @@ module Mongo
       end
     end
 
-    def receive(sock)
-      receive_header(sock)
-      number_received, cursor_id = receive_response_header(sock)
-      read_documents(number_received, cursor_id, sock)
+    def receive(sock, print_bytes=false)
+      receive_header(sock, print_bytes)
+      number_received, cursor_id = receive_response_header(sock, print_bytes)
+      read_documents(number_received, cursor_id, sock, print_bytes)
     end
 
-    def receive_header(sock)
+    def receive_header(sock, print_bytes=false)
       header = BSON::ByteBuffer.new
       header.put_array(receive_message_on_socket(16, sock).unpack("C*"))
       unless header.size == STANDARD_HEADER_SIZE
@@ -626,12 +626,16 @@ module Mongo
       end
       header.rewind
       size        = header.get_int
+      log("Size: #{size}") if print_bytes
       request_id  = header.get_int
+      log("Request id: #{request_id}") if print_bytes
       response_to = header.get_int
+      log("Response to: #{response_to}") if print_bytes
       op          = header.get_int
+      log("Op: #{op}") if print_bytes
     end
 
-    def receive_response_header(sock)
+    def receive_response_header(sock, print_bytes=false)
       header_buf = BSON::ByteBuffer.new
       header_buf.put_array(receive_message_on_socket(RESPONSE_HEADER_SIZE, sock).unpack("C*"))
       if header_buf.length != RESPONSE_HEADER_SIZE
@@ -639,14 +643,22 @@ module Mongo
           "expected #{RESPONSE_HEADER_SIZE} bytes, saw #{header_buf.length}"
       end
       header_buf.rewind
-      check_response_flags(header_buf.get_int)
+      check_response_flags(header_buf.get_int, print_bytes)
       cursor_id        = header_buf.get_long
+      log("Cursor id: #{cursor_id}") if print_bytes
       starting_from    = header_buf.get_int
+      log("Starting from: #{cursor_id}") if print_bytes
       number_remaining = header_buf.get_int
+      log("Num remaining: #{cursor_id}") if print_bytes
       [number_remaining, cursor_id]
     end
 
-    def check_response_flags(flags)
+    def log(item)
+      @logger.info(item) if @logger
+    end
+
+    def check_response_flags(flags, print_bytes)
+      @logger.info("Response flags: #{flags}") if print_bytes && @logger
       if flags & Mongo::Constants::REPLY_CURSOR_NOT_FOUND != 0
         raise Mongo::OperationFailure, "Query response returned CURSOR_NOT_FOUND. " +
           "Either an invalid cursor was specified, or the cursor may have timed out on the server."
@@ -655,7 +667,7 @@ module Mongo
       end
     end
 
-    def read_documents(number_received, cursor_id, sock)
+    def read_documents(number_received, cursor_id, sock, print_bytes=false)
       docs = []
       number_remaining = number_received
       while number_remaining > 0 do
@@ -663,7 +675,9 @@ module Mongo
         buf.put_array(receive_message_on_socket(4, sock).unpack("C*"))
         buf.rewind
         size = buf.get_int
+        log("Document size: #{size}") if print_bytes
         buf.put_array(receive_message_on_socket(size - 4, sock).unpack("C*"), 4)
+        log("Document bytes: #{buf.to_a.join(" ")}") if print_bytes
         number_remaining -= 1
         buf.rewind
         docs << BSON::BSON_CODER.deserialize(buf)
