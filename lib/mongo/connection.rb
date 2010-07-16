@@ -144,6 +144,10 @@ module Mongo
       end
     end
 
+    def self.replica_set(nodes, opts={})
+
+    end
+
     # Initialize a connection to MongoDB using the MongoDB URI spec:
     #
     # @param uri [String]
@@ -339,7 +343,7 @@ module Mongo
     #
     # @return [True]
     def send_message(operation, message, log_message=nil)
-      @logger.debug("  MONGODB #{log_message || message}") if @logger
+      @logger.info("  MONGODB #{log_message || message}") if @logger
       begin
         packed_message = add_message_headers(operation, message).to_s
         socket = checkout
@@ -367,7 +371,7 @@ module Mongo
     def send_message_with_safe_check(operation, message, db_name, log_message=nil, last_error_params=false)
       message_with_headers = add_message_headers(operation, message)
       message_with_check   = last_error_message(db_name, last_error_params)
-      @logger.debug("  MONGODB #{log_message || message}") if @logger
+      @logger.info("  MONGODB #{log_message || message}") if @logger
       begin
         sock = checkout
         packed_message = message_with_headers.append!(message_with_check).to_s
@@ -397,7 +401,7 @@ module Mongo
     #   and [3] a cursor_id.
     def receive_message(operation, message, log_message=nil, socket=nil)
       packed_message = add_message_headers(operation, message).to_s
-      @logger.debug("  MONGODB #{log_message || message}") if @logger
+      @logger.info("  MONGODB #{log_message || message}") if @logger
       begin
         sock = socket || checkout
 
@@ -622,10 +626,15 @@ module Mongo
           "expected #{STANDARD_HEADER_SIZE} bytes, saw #{header.size}"
       end
       header.rewind
+      log(" - Received header:")
       size        = header.get_int
+      log("Size: #{size}")
       request_id  = header.get_int
+      log("Request id: #{request_id}")
       response_to = header.get_int
+      log("Response to: #{response_to}") 
       op          = header.get_int
+      log("Op: #{op}") 
     end
 
     def receive_response_header(sock)
@@ -638,18 +647,26 @@ module Mongo
       header_buf.rewind
       check_response_flags(header_buf.get_int)
       cursor_id        = header_buf.get_long
+      log("Cursor id: #{cursor_id}")
       starting_from    = header_buf.get_int
+      log("Starting from: #{starting_from}")
       number_remaining = header_buf.get_int
+      log("Num remaining: #{number_remaining}") 
       [number_remaining, cursor_id]
     end
 
     def check_response_flags(flags)
+      log("Response flags: #{flags}")
       if flags & Mongo::Constants::REPLY_CURSOR_NOT_FOUND != 0
         raise Mongo::OperationFailure, "Query response returned CURSOR_NOT_FOUND. " +
           "Either an invalid cursor was specified, or the cursor may have timed out on the server."
       elsif flags & Mongo::Constants::REPLY_QUERY_FAILURE != 0
         # Getting odd failures when a exception is raised here.
       end
+    end
+
+    def log(item)
+      @logger.info(item) if @logger
     end
 
     def read_documents(number_received, cursor_id, sock)
@@ -723,11 +740,13 @@ module Mongo
     # Requires length and an available socket.
     def receive_message_on_socket(length, socket)
       message = ""
+      log("Attempting to recieve message of length #{length} on socket #{socket.object_id}.")
       begin
         while message.length < length do
           chunk = socket.recv(length - message.length)
           raise ConnectionFailure, "connection closed" unless chunk.length > 0
-          message += chunk
+          log("receive: #{length}")
+          message << chunk
         end
         rescue => ex
           close

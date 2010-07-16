@@ -37,6 +37,7 @@ module Mongo
       @db         = collection.db
       @collection = collection
       @connection = @db.connection
+      @logger     = @connection.logger
 
       @selector   = convert_selector_for_query(options[:selector])
       @fields     = convert_fields_for_query(options[:fields])
@@ -45,7 +46,7 @@ module Mongo
       @order      = options[:order]
       @hint       = options[:hint]
       @snapshot   = options[:snapshot]
-      @timeout    = options[:timeout]  || false
+      @timeout    = options[:timeout]  || true
       @explain    = options[:explain]
       @socket     = options[:socket]
       @tailable   = options[:tailable] || false
@@ -252,7 +253,7 @@ module Mongo
     # The MongoDB wire protocol.
     def query_opts
       opts     = 0
-      opts    |= Mongo::Constants::OP_QUERY_NO_CURSOR_TIMEOUT unless @timeout
+      opts    |= Mongo::Constants::OP_QUERY_NO_CURSOR_TIMEOUT if !@timeout
       opts    |= Mongo::Constants::OP_QUERY_SLAVE_OK if @connection.slave_ok?
       opts    |= Mongo::Constants::OP_QUERY_TAILABLE if @tailable
       opts
@@ -333,9 +334,12 @@ module Mongo
       # Number of results to return.
       message.put_int(@batch_size)
 
+      log("Get more. Cursor id #{@cursor_id}")
+
       # Cursor id.
       message.put_long(@cursor_id)
       results, @n_received, @cursor_id = @connection.receive_message(Mongo::Constants::OP_GET_MORE, message, "cursor.get_more()", @socket)
+      log("Number received: #{@n_received}. Cursor id: #{@cursor_id}")
       @cache += results
       close_cursor_if_query_complete
     end
@@ -345,9 +349,11 @@ module Mongo
       if @query_run
         false
       else
+        log("Initial query.")
         message = construct_query_message
         results, @n_received, @cursor_id = @connection.receive_message(Mongo::Constants::OP_QUERY, message,
             (query_log_message if @connection.logger), @socket)
+        log("Number received: #{@n_received}. Cursor id: #{@cursor_id}")
         @cache += results
         @query_run = true
         close_cursor_if_query_complete
@@ -355,8 +361,13 @@ module Mongo
       end
     end
 
+    def log(item)
+      @logger.info(item) if @logger
+    end
+
     def construct_query_message
       message = BSON::ByteBuffer.new
+      log("Query opts: #{query_opts}")
       message.put_int(query_opts)
       BSON::BSON_RUBY.serialize_cstr(message, "#{@db.name}.#{@collection.name}")
       message.put_int(@skip)
