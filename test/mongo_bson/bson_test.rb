@@ -287,14 +287,17 @@ class BSONTest < Test::Unit::TestCase
     assert_unsupported_date_class(Zone)
   end
 
-  def test_dbref
-    oid = ObjectID.new
-    doc = {}
-    doc['dbref'] = DBRef.new('namespace', oid)
-    bson = @encoder.serialize(doc)
-    doc2 = @encoder.deserialize(bson)
-    assert_equal 'namespace', doc2['dbref'].namespace
-    assert_equal oid, doc2['dbref'].object_id
+  unless RUBY_PLATFORM =~ /java/
+    # Not supporting dbref deserialization on jRuby.
+    def test_dbref
+      oid = ObjectID.new
+      doc = {}
+      doc['dbref'] = DBRef.new('namespace', oid)
+      bson = @encoder.serialize(doc)
+      doc2 = @encoder.deserialize(bson)
+      assert_equal 'namespace', doc2['dbref'].namespace
+      assert_equal oid, doc2['dbref'].object_id
+    end
   end
 
   def test_symbol

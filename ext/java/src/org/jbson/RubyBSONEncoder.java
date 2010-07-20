@@ -10,6 +10,8 @@ import java.util.*;
 import java.util.concurrent.atomic.*;
 import java.util.regex.*;
 
+import java.math.BigInteger;
+
 import org.bson.BSONEncoder;
 
 import org.jruby.javasupport.JavaEmbedUtils;
@@ -44,6 +46,11 @@ public class RubyBSONEncoder extends BSONEncoder {
     private RubyModule _rbclsDBRef;
     private RubyModule _rbclsInvalidDocument;
     private RubyModule _rbclsRangeError;
+
+    private static final int BIT_SIZE = 64;
+    private static final long MAX = (1L << (BIT_SIZE - 1)) - 1;
+    private static final BigInteger LONG_MAX = BigInteger.valueOf(MAX);
+    private static final BigInteger LONG_MIN = BigInteger.valueOf(-MAX - 1);
 
     public RubyBSONEncoder(Ruby runtime){
         _runtime = runtime;
@@ -162,6 +169,8 @@ public class RubyBSONEncoder extends BSONEncoder {
                      str = ((RubySymbol)hashKey).asJavaString();
                  }
 
+                 testNull(str);
+
                  //  Still having trouble with symbols here
                  if ( rewriteID && str.equals( "_id" ) )
                     continue;
@@ -259,7 +268,14 @@ public class RubyBSONEncoder extends BSONEncoder {
         }
 
         else if (val instanceof RubyBignum) {
-            _rbRaise( (RubyClass)_rbclsRangeError , "MongoDB can only handle 8-byte ints" );
+            BigInteger big = ((RubyBignum)val).getValue();
+            if( big.compareTo(LONG_MAX) > 0 || big.compareTo(LONG_MIN) < 0 ) {
+                _rbRaise( (RubyClass)_rbclsRangeError , "MongoDB can only handle 8-byte ints" );
+            }
+            else {
+                long jval = big.longValue();
+                putNumber(name, (Number)jval );
+            }
         }
 
         // This is where we handle special types defined in the Ruby BSON.
@@ -295,6 +311,16 @@ public class RubyBSONEncoder extends BSONEncoder {
 
           }
         }
+    }
+
+    private void testNull(String str) {
+       byte[] bytes = str.getBytes();
+
+       for(int j = 0; j < bytes.length; j++ ) {
+         if(bytes[j] == '\u0000') {
+             _rbRaise( (RubyClass)_rbclsInvalidDocument, "Null not allowed");
+         }
+       }
     }
 
     private void putIterable( String name , Iterable l ){
@@ -464,8 +490,11 @@ public class RubyBSONEncoder extends BSONEncoder {
     }
 
     private void putRubyRegexp( String name, RubyRegexp r ) {
+        RubyString source = (RubyString)r.source();
+        testNull(source.toString());
+
         _put( REGEX , name );
-        _put( (String)((RubyString)r.source()).toJava(String.class) );
+        _put( (String)((RubyString)source).toJava(String.class) );
 
         int regexOptions = (int)((RubyFixnum)r.options()).getLongValue();
         String options   = "";

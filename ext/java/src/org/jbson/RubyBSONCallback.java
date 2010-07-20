@@ -27,6 +27,7 @@ public class RubyBSONCallback implements BSONCallback {
 
     private RubyHash _root;
     private RubyModule _rbclsOrderedHash;
+    private RubyModule _rbclsDBRef;
     private final LinkedList<RubyObject> _stack = new LinkedList<RubyObject>();
     private final LinkedList<String> _nameStack = new LinkedList<String>();
     private Ruby _runtime;
@@ -82,19 +83,10 @@ public class RubyBSONCallback implements BSONCallback {
     }
 
     public void writeRubyHash(String key, RubyHash hash, IRubyObject obj) {
-        RubyString rkey = RubyString.newString(_runtime, key);
-        if(_rbHashHasKey((RubyHash)obj, "$ref")) {
-           Object[] args = new Object[] { _rbHashGet((RubyHash)obj, "$ref"), _rbHashGet((RubyHash)obj, "$ns") };
-
-           Object result = JavaEmbedUtils.invokeMethod(_runtime, _rbclsDBRef, "new", args, Object.class);
-
-           JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=",
-               new Object[] { (IRubyObject)rkey, (RubyObject)obj }, Object.class);
-        }
-        else {
-          JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=", new Object[] { (IRubyObject)rkey, obj }, Object.class);
-        }
-        //hash.op_aset( _runtime.getCurrentContext(), (IRubyObject)rkey, obj);
+        RubyString rkey = _runtime.newString(key);
+        JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=",
+          new Object[] { (IRubyObject)rkey, obj }, Object.class);
+        System.out.println(obj.toString());
     }
 
     // Helper method for checking whether a Ruby hash has a certain key.
@@ -193,6 +185,7 @@ public class RubyBSONCallback implements BSONCallback {
     }
     
     public void gotLong( String name , long v ){
+        System.out.println(v);
         RubyFixnum f = new RubyFixnum( _runtime, v );
         _put(name , (RubyObject)f);
     }
@@ -298,16 +291,16 @@ public class RubyBSONCallback implements BSONCallback {
 
     protected void _put( String name , RubyObject o ){
         RubyObject current = cur();
-        if(current instanceof RubyHash) {
-          RubyHash h = (RubyHash)current;
-          RubyString rname = RubyString.newString(_runtime, name);
-          h.op_aset(_runtime.getCurrentContext(), (IRubyObject)rname, (IRubyObject)o);
-        }
-        else {
+        if(current instanceof RubyArray) {
           RubyArray a = (RubyArray)current;
           Long n = Long.parseLong(name);
           RubyFixnum index = new RubyFixnum(_runtime, n);
           a.aset((IRubyObject)index, (IRubyObject)o);
+        }
+        else {
+          RubyString rkey = RubyString.newString(_runtime, name);
+          JavaEmbedUtils.invokeMethod(_runtime, current, "[]=",
+            new Object[] { (IRubyObject)rkey, o }, Object.class);
         }
     }
     
