@@ -241,7 +241,7 @@ public class RubyBSONEncoder extends BSONEncoder {
 
         else if ( val instanceof RubyString ) {
             System.out.println("putting string");
-            putRubyString(name, val.toString() );
+            putRubyString(name, ((RubyString)val).getUnicodeValue() );
         }
 
         else if ( val instanceof String )

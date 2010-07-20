@@ -138,7 +138,6 @@ class BSONTest < Test::Unit::TestCase
     end
   end
 
-
   def test_code
     doc = {'$where' => Code.new('this.a.b < this.b')}
     bson = @encoder.serialize(doc)
