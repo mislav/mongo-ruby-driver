@@ -46,6 +46,7 @@ public class RubyBSONEncoder extends BSONEncoder {
     private RubyModule _rbclsDBRef;
     private RubyModule _rbclsInvalidDocument;
     private RubyModule _rbclsRangeError;
+    private RubySymbol _idAsSym;
 
     private static final int BIT_SIZE = 64;
     private static final long MAX = (1L << (BIT_SIZE - 1)) - 1;
@@ -58,6 +59,7 @@ public class RubyBSONEncoder extends BSONEncoder {
         _rbclsDBRef = _runtime.getClassFromPath( "BSON::DBRef" );
         _rbclsInvalidDocument = _runtime.getClassFromPath( "BSON::InvalidDocument" );
         _rbclsRangeError = _runtime.getClassFromPath( "RangeError" );
+        _idAsSym = _runtime.newSymbol( "_id" );
     }
 
     // Encode needs to return a ByteBuffer
@@ -141,7 +143,7 @@ public class RubyBSONEncoder extends BSONEncoder {
 
 
         if ( myType == OBJECT ) {
-            if ( rewriteID && _rbHashHasKey( (RubyHash)o, "_id" ) )
+            if ( rewriteID && ( _rbHashHasKey( (RubyHash)o, "_id" ) || ( _rbHashHasKey( (RubyHash)o, _idAsSym )) ) )
                 _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _runtime.newString("_id") ) );
 
             {
@@ -549,6 +551,11 @@ public class RubyBSONEncoder extends BSONEncoder {
     // Helper method for checking whether a Ruby hash has a certain key.
     private boolean _rbHashHasKey(RubyHash hash, String key) {
         RubyBoolean b = hash.has_key_p( _runtime.newString( key ) );
+        return b == _runtime.getTrue();
+    }
+
+    private boolean _rbHashHasKey(RubyHash hash, RubySymbol sym) {
+        RubyBoolean b = hash.has_key_p( sym );
         return b == _runtime.getTrue();
     }
 
