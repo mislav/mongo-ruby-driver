@@ -143,10 +143,16 @@ public class RubyBSONEncoder extends BSONEncoder {
 
 
         if ( myType == OBJECT ) {
-            if ( rewriteID && ( _rbHashHasKey( (RubyHash)o, "_id" ) || ( _rbHashHasKey( (RubyHash)o, _idAsSym )) ) )
-                _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _runtime.newString("_id") ) );
 
-            {
+            if ( rewriteID ) {
+
+                if (  _rbHashHasKey( (RubyHash)o, "_id" ) ) {
+                    _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _runtime.newString("_id") ) );
+                }
+                else if ( ( _rbHashHasKey( (RubyHash)o, _idAsSym )) ) {
+                    _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _idAsSym ) );
+                }
+
                 RubyObject temp = (RubyObject)_rbHashGet( (RubyHash)o, _runtime.newString("_transientFields") );
                 if ( temp instanceof RubyArray )
                     transientFields = (RubyArray)temp;
@@ -240,7 +246,6 @@ public class RubyBSONEncoder extends BSONEncoder {
            putNumber(name, (Number)val );
 
         else if ( val instanceof RubyString ) {
-            System.out.println("putting string");
             putRubyString(name, ((RubyString)val).getUnicodeValue() );
         }
 

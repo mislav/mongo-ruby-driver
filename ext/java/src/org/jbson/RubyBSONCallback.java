@@ -86,7 +86,6 @@ public class RubyBSONCallback implements BSONCallback {
         RubyString rkey = _runtime.newString(key);
         JavaEmbedUtils.invokeMethod(_runtime, hash, "[]=",
           new Object[] { (IRubyObject)rkey, obj }, Object.class);
-        System.out.println(obj.toString());
     }
 
     // Helper method for checking whether a Ruby hash has a certain key.
@@ -185,7 +184,6 @@ public class RubyBSONCallback implements BSONCallback {
     }
     
     public void gotLong( String name , long v ){
-        System.out.println(v);
         RubyFixnum f = new RubyFixnum( _runtime, v );
         _put(name , (RubyObject)f);
     }

@@ -236,11 +236,11 @@ class DBTest < Test::Unit::TestCase
   def test_user_management
     @@db.add_user("bob", "secret")
     assert @@db.authenticate("bob", "secret")
-    @@db.logout
     assert @@db.remove_user("bob")
     assert_raise Mongo::AuthenticationError do
       @@db.authenticate("bob", "secret")
     end
+    @@db.logout
   end
 
   def test_remove_non_existant_user

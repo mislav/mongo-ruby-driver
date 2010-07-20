@@ -181,12 +181,7 @@ class BSONTest < Test::Unit::TestCase
     doc["c"] = 3
     doc["d"] = 4
     bson = @encoder.serialize(doc)
-    puts
-    p bson
-    puts
     de = @encoder.deserialize(bson)
-    p de
-    p de.class
     assert_equal doc, @encoder.deserialize(bson)
   end
 
@@ -197,7 +192,7 @@ class BSONTest < Test::Unit::TestCase
   end
 
   def test_oid
-    doc = {'doc' => ObjectID.new}
+    doc = {'_id' => ObjectID.new}
     bson = @encoder.serialize(doc)
     assert_equal doc, @encoder.deserialize(bson)
   end

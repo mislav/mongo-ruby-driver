@@ -42,4 +42,5 @@ module BSON
       {"$ns" => @namespace, "$id" => @object_id }
     end
   end
+
 end
