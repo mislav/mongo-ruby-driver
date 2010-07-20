@@ -34,5 +34,10 @@ module BSON
       @scope = scope
     end
 
+    def ==(other)
+      super && self.class == other.class &&
+        @scope == other.scope
+    end
+
   end
 end
