@@ -362,14 +362,10 @@ class BSONTest < Test::Unit::TestCase
     val['_id'] = 2
     roundtrip = @encoder.deserialize(@encoder.serialize(val, false, true).to_a)
     assert_kind_of BSON::OrderedHash, roundtrip
-    puts "ROUNDTRIP"
-    puts roundtrip
-    puts roundtrip.class
-    puts
-    puts roundtrip.keys
-    puts
     assert_equal '_id', roundtrip.keys.first
+  end
 
+  def test_put_sym_id_first
     val = {'a' => 'foo', 'b' => 'bar', :_id => 42, 'z' => 'hello'}
     roundtrip = @encoder.deserialize(@encoder.serialize(val, false, true).to_a)
     assert_kind_of BSON::OrderedHash, roundtrip
