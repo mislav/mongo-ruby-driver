@@ -320,6 +320,13 @@ class BSONTest < Test::Unit::TestCase
     assert_equal Binary::SUBTYPE_BYTES, bin2.subtype
   end
 
+  def test_long_binary
+    data = BSON::Binary.new(("BINARY " * 1000).unpack("c*"))
+    doc = {'bin' => data}
+    bson = @encoder.serialize(doc)
+    assert_equal doc, @encoder.deserialize(bson)
+  end
+
   def test_binary_with_string
     b = Binary.new('somebinarystring')
     doc = {'bin' => b}

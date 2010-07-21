@@ -436,13 +436,13 @@ public class RubyBSONEncoder extends BSONEncoder {
         long subtype = rbSubtype.longValue();
         byte[] data = ra2ba( rarray );
         if ( subtype == 2 ) {
-          putBinary( name, data );
+            putBinary( name, data );
         }
         else {
-          _put( BINARY , name );
-          _buf.writeInt( data.length );
-          _buf.write( (byte)subtype );
-          _buf.write( data );
+            _put( BINARY , name );
+            _buf.writeInt( data.length );
+            _buf.write( (byte)subtype );
+            _buf.write( data );
         }
     }
 
