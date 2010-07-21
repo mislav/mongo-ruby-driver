@@ -26,5 +26,11 @@ class CodeTest < Test::Unit::TestCase
     should "not be equal to a string with no scope" do
       assert_not_equal @code_with_scope, @code_str
     end
+
+    should "inspect with values" do
+      ins =  "<BSON::Code:#{@code_with_scope.object_id}" +
+        " @data=\"#{@code_str}\" @scope=\"#{@code_with_scope.scope.inspect}\">"
+      assert_equal ins, @code_with_scope.inspect
+    end
   end
 end

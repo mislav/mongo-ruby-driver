@@ -39,5 +39,9 @@ module BSON
         @scope == other.scope
     end
 
+    def inspect
+      "<BSON::Code:#{object_id} @data=\"#{self}\" @scope=\"#{scope.inspect}\">"
+    end
+
   end
 end
