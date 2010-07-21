@@ -62,9 +62,8 @@ public class RubyBSONEncoder extends BSONEncoder {
         _idAsSym = _runtime.newSymbol( "_id" );
     }
 
-    // Encode needs to return a ByteBuffer
+    // Encode returns a BSON::ByteBuffer
     public RubyObject encode( Object arg ) {
-        //Boolean move_id = (Boolean)((RubyBoolean)should_move_id).toJava(Boolean.class);
         RubyHash o = (RubyHash)arg;
         BasicOutputBuffer buf = new BasicOutputBuffer();
         set( buf );
@@ -87,8 +86,10 @@ public class RubyBSONEncoder extends BSONEncoder {
     }
 
     public void set( OutputBuffer out ){
-        if ( _buf != null )
+        if ( _buf != null ) {
+            done();
             throw new IllegalStateException( "in the middle of something" );
+        }
         
         _buf = out;
     }
@@ -109,12 +110,10 @@ public class RubyBSONEncoder extends BSONEncoder {
      * @param o the object to encode
      * @return the number of characters in the encoding
      */
-    //public int putObject( BSONObject o ){
-    //    return putObject( null , o );
-    //}
     public int putObject( RubyObject o ) {
         return putObject( null, o );
     }
+
     /**
      * this is really for embedded objects
      */
@@ -165,11 +164,13 @@ public class RubyBSONEncoder extends BSONEncoder {
             for (Iterator<RubyObject> i = keys.iterator(); i.hasNext(); ) {
 
                  Object hashKey = i.next();
+
+                 // Convert the key into a Java String
                  String str = "";
                  if( hashKey instanceof String) {
                      str = hashKey.toString();
                  }
-                 //RubyObject hashKey = i.next();
+
                  else if (hashKey instanceof RubyString) {
                      str = ((RubyString)hashKey).asJavaString();
                  }
@@ -179,24 +180,16 @@ public class RubyBSONEncoder extends BSONEncoder {
 
                  testNull(str);
 
-                 //  Still having trouble with symbols here
+                 // If we're rewriting the _id, we can move on.
                  if ( rewriteID && str.equals( "_id" ) )
                     continue;
 
-                //if ( transientFields != null && transientFields.contains( s ) )
-                //    continue;
-
-               // System.out.println("STRING VALUE");
-                //System.out.println(str);
-
                 RubyObject val = (RubyObject)_rbHashGet( (RubyHash)o, hashKey );
-
-                //System.out.println(val);
                 _putObjectField( str , (Object)val );
-
             }
           }
 
+        // Make sure we're within the 4MB limit
         if ( _buf.size() > 4 * 1024 * 1024 ) {
             _rbRaise( (RubyClass)_rbclsInvalidDocument,
               "Document is too large (" + _buf.size() + "). BSON documents are limited to 4MB (" +
@@ -224,8 +217,6 @@ public class RubyBSONEncoder extends BSONEncoder {
             _putValueString( val.toString() );
             return;
         }
-
-        // val = BSON.applyEncodingHooks( val );
 
         if ( val instanceof RubyNil )
             putNull(name);
@@ -306,7 +297,9 @@ public class RubyBSONEncoder extends BSONEncoder {
 
         // This is where we handle special types defined in the Ruby BSON.
         else if ( val instanceof RubyObject ) {
-          String klass = JavaEmbedUtils.invokeMethod(_runtime, val, "class", new Object[] {}, Object.class).toString();
+          String klass = JavaEmbedUtils.invokeMethod(_runtime, val,
+              "class", new Object[] {}, Object.class).toString();
+
           if( klass.equals( "BSON::ObjectID" ) ) {
               putRubyObjectId(name, (RubyObject)val );
           }
@@ -327,13 +320,16 @@ public class RubyBSONEncoder extends BSONEncoder {
                   "to_hash", new Object[] {}, Object.class);
               putMap( name , (Map)ref );
           }
-          else if ( klass.equals("Date") || klass.equals("DateTime") || klass.equals("ActiveSupport::TimeWithZone") ) {
+          else if ( klass.equals("Date") || klass.equals("DateTime") ||
+              klass.equals("ActiveSupport::TimeWithZone") ) {
+
               _rbRaise( (RubyClass)_rbclsInvalidDocument,
                   klass + " is not currently supported; use a UTC Time instance instead.");
           }
           else {
               _rbRaise( (RubyClass)_rbclsInvalidDocument,
-                "Cannot serialize " + klass + " as a BSON type; it either isn't supported or won't translate to BSON.");
+                "Cannot serialize " + klass + " as a BSON type; " +
+                "it either isn't supported or won't translate to BSON.");
 
           }
         }
@@ -362,7 +358,7 @@ public class RubyBSONEncoder extends BSONEncoder {
 
 
         _buf.write( EOO );
-        _buf.writeInt( sizePos , _buf.getPosition() - sizePos );        
+        _buf.writeInt( sizePos , _buf.getPosition() - sizePos );
     }
 
     private void putMap( String name , Map m ){
@@ -410,7 +406,6 @@ public class RubyBSONEncoder extends BSONEncoder {
         int temp = _buf.getPosition();
         _buf.writeInt( 0 );
         _putValueString( code.getCode() );
-        //putObject( (Object)code.getScope() , false);
         _buf.writeInt( temp , _buf.getPosition() - temp );
     }
 
@@ -444,8 +439,10 @@ public class RubyBSONEncoder extends BSONEncoder {
     }
 
     private void putRubyBinary( String name , RubyObject binary ) {
-        RubyArray rarray = (RubyArray)JavaEmbedUtils.invokeMethod(_runtime, binary, "to_a", new Object[] {}, Object.class);
-        Long rbSubtype = (Long)JavaEmbedUtils.invokeMethod(_runtime, binary, "subtype", new Object[] {}, Object.class);
+        RubyArray rarray = (RubyArray)JavaEmbedUtils.invokeMethod(_runtime,
+            binary, "to_a", new Object[] {}, Object.class);
+        Long rbSubtype = (Long)JavaEmbedUtils.invokeMethod(_runtime,
+            binary, "subtype", new Object[] {}, Object.class);
         long subtype = rbSubtype.longValue();
         byte[] data = ra2ba( rarray );
         if ( subtype == 2 ) {
@@ -508,7 +505,8 @@ public class RubyBSONEncoder extends BSONEncoder {
     private void putRubyObjectId( String name, RubyObject oid ) {
         _put( OID , name );
 
-        RubyArray roid = (RubyArray)JavaEmbedUtils.invokeMethod(_runtime, oid, "to_a", new Object[] {}, Object.class);
+        RubyArray roid = (RubyArray)JavaEmbedUtils.invokeMethod(_runtime, oid,
+            "to_a", new Object[] {}, Object.class);
         byte[] joid = ra2ba( (RubyArray)roid );
 
         _buf.writeInt( convertToInt(joid, 0) );

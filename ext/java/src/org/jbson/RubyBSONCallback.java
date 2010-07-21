@@ -104,6 +104,7 @@ public class RubyBSONCallback implements BSONCallback {
           new Object[] { (IRubyObject)rkey, obj }, Object.class);
     }
 
+    // TODO: Extract these helper methods into a module?
     // Helper method for checking whether a Ruby hash has a certain key.
     private boolean _rbHashHasKey(RubyHash hash, String key) {
         RubyBoolean b = hash.has_key_p( _runtime.newString( key ) );
@@ -168,6 +169,7 @@ public class RubyBSONCallback implements BSONCallback {
     public void gotUndefined( String name ){
     }
 
+    // TODO: Handle this
     public void gotUUID( String name , long part1, long part2) {
         //_put( name , new UUID(part1, part2) );
     }
@@ -282,12 +284,13 @@ public class RubyBSONCallback implements BSONCallback {
         _put( name, (RubyObject)result );
     }
 
+    // TODO: Incredibly annoying to deserialize to a Ruby DBRef. Might just
+    // stop supporting this altogether in the driver.
     public void gotDBRef( String name , String ns , ObjectId id ){
         // _put( name , new BasicBSONObject( "$ns" , ns ).append( "$id" , id ) );
     }
 
-    // I know that this is horrible. Planning to come up with
-    // something better.
+    // TODO: I know that this is horrible. To be optimized.
     private RubyArray ja2ra( byte[] b ) {
         RubyArray result = RubyArray.newArray( _runtime, b.length );
         
