@@ -237,7 +237,11 @@ public class RubyBSONEncoder extends BSONEncoder {
 
         else if ( val instanceof RubyFixnum ) {
             long jval = ((RubyFixnum)val).getLongValue();
-            putNumber(name, (Number)jval );
+            if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
+                putNumber(name, (int)jval );
+            }
+            else
+                putNumber(name, (Number)jval );
         }
 
         else if ( val instanceof RubyFloat ) {
