@@ -44,7 +44,7 @@ require 'bson/byte_buffer'
 require 'bson/bson_ruby'
 require 'bson/exceptions'
 
-  if RUBY_PLATFORM =~ /java/
+if RUBY_PLATFORM =~ /java/
     jar_dir = File.join(File.dirname(__FILE__), '..', 'ext', 'java', 'jar')
     require File.join(jar_dir, 'mongo.jar')
     require File.join(jar_dir, 'bson.jar')
