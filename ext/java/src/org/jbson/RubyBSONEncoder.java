@@ -214,7 +214,10 @@ public class RubyBSONEncoder extends BSONEncoder {
         if ( name.equals( "_transientFields" ) )
             return;
 
-        if ( DEBUG ) System.out.println( "\t put thing : " + name );
+        if ( DEBUG ) {
+          System.out.println( "\t put thing : " + name );
+          System.out.println( "\t class : " + val.getClass().getName() );
+        }
 
         if ( name.equals( "$where") && val instanceof String ){
             _put( CODE , name );
@@ -254,6 +257,9 @@ public class RubyBSONEncoder extends BSONEncoder {
 
         else if ( val instanceof RubyBoolean )
             putBoolean(name, (Boolean)((RubyBoolean)val).toJava(Boolean.class));
+
+        else if ( val instanceof Boolean )
+            putBoolean(name, (Boolean)val);
 
         else if ( val instanceof RubyRegexp )
             putRubyRegexp(name, (RubyRegexp)val );
@@ -381,12 +387,8 @@ public class RubyBSONEncoder extends BSONEncoder {
         String code_string = (String)JavaEmbedUtils.invokeMethod(_runtime, code,
             "code", new Object[] {}, Object.class);
 
-        System.out.println(code_string);
-
         _putValueString( code_string );
-
         putObject( (RubyObject)JavaEmbedUtils.invokeMethod(_runtime, code, "scope", new Object[] {}, Object.class) );
-
         _buf.writeInt( temp , _buf.getPosition() - temp );
     }
 

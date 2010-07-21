@@ -225,6 +225,12 @@ class BSONTest < Test::Unit::TestCase
     assert_equal doc, @encoder.deserialize(bson)
   end
 
+  def test_embedded_boolean
+    doc = {'doc' => {'$set' => {'foo' => true}}}
+    bson = @encoder.serialize(doc)
+    assert_equal doc, @encoder.deserialize(bson)
+  end
+
   def test_date
     doc = {'date' => Time.now}
     bson = @encoder.serialize(doc)
