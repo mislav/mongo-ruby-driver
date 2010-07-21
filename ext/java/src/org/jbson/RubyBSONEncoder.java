@@ -235,6 +235,7 @@ public class RubyBSONEncoder extends BSONEncoder {
             putDate( name , jval );
         }
 
+        // TODO: Clean up
         else if ( val instanceof RubyFixnum ) {
             long jval = ((RubyFixnum)val).getLongValue();
             if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
@@ -244,13 +245,21 @@ public class RubyBSONEncoder extends BSONEncoder {
                 putNumber(name, (Number)jval );
         }
 
+        // TODO: Clean up
         else if ( val instanceof RubyFloat ) {
             double jval = ((RubyFloat)val).getValue();
             putNumber(name, (Number)jval );
         }
 
-        else if ( val instanceof Number )
-           putNumber(name, (Number)val );
+        // TODO: Clean up
+        else if ( val instanceof Number ) {
+            long jval = ((Number)val).longValue();
+            if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
+                putNumber(name, (int)jval );
+            }
+            else
+                putNumber(name, (Number)jval );
+        }
 
         else if ( val instanceof RubyString ) {
             putRubyString(name, ((RubyString)val).getUnicodeValue() );
