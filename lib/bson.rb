@@ -47,6 +47,7 @@ require 'bson/exceptions'
   if RUBY_PLATFORM =~ /java/
     jar_dir = File.join(File.dirname(__FILE__), '..', 'ext', 'java', 'jar')
     require File.join(jar_dir, 'mongo.jar')
+    require File.join(jar_dir, 'bson.jar')
     require File.join(jar_dir, 'jbson.jar')
     require 'bson/bson_java'
     module BSON

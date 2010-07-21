@@ -28,6 +28,7 @@ public class RubyBSONCallback implements BSONCallback {
     private RubyHash _root;
     private RubyModule _rbclsOrderedHash;
     private RubyModule _rbclsDBRef;
+    private RubyModule _rbclsCode;
     private final LinkedList<RubyObject> _stack = new LinkedList<RubyObject>();
     private final LinkedList<String> _nameStack = new LinkedList<String>();
     private Ruby _runtime;
@@ -36,6 +37,17 @@ public class RubyBSONCallback implements BSONCallback {
       _runtime = runtime;
       _rbclsOrderedHash = _runtime.getClassFromPath( "BSON::OrderedHash" );
       _rbclsDBRef       = _runtime.getClassFromPath( "BSON::DBRef" );
+      _rbclsCode        = _runtime.getClassFromPath( "BSON::Code" );
+    }
+
+    public BSONCallback createBSONCallback(){
+        return new RubyBSONCallback(_runtime);
+    }
+
+    public void reset(){
+        _root = null;
+        _stack.clear();
+        _nameStack.clear();
     }
 
     public RubyHash createHash() {
@@ -62,6 +74,10 @@ public class RubyBSONCallback implements BSONCallback {
 
         _root = createHash();
         _stack.add(_root);
+    }
+
+    public void objectStart(boolean f) {
+        objectStart();
     }
 
     public void objectStart(String key){
@@ -150,6 +166,26 @@ public class RubyBSONCallback implements BSONCallback {
 
     // Undefined should be represented as a lack of key / value.
     public void gotUndefined( String name ){
+    }
+
+    public void gotUUID( String name , long part1, long part2) {
+        //_put( name , new UUID(part1, part2) );
+    }
+
+    public void gotCode( String name , String code ){
+        RubyString code_string = _runtime.newString( code );
+        Object rb_code_obj = JavaEmbedUtils.invokeMethod(_runtime, _rbclsCode,
+            "new", new Object[] { code_string }, Object.class);
+        _put( name , (RubyObject)rb_code_obj );
+    }
+
+    public void gotCodeWScope( String name , String code , Object scope ){
+        RubyString code_string = _runtime.newString( code );
+
+        Object rb_code_obj = JavaEmbedUtils.invokeMethod(_runtime, _rbclsCode,
+            "new", new Object[] { code_string, (RubyHash)scope }, Object.class);
+
+        _put( name , (RubyObject)rb_code_obj );
     }
 
     public void gotMinKey( String name ){

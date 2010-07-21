@@ -523,8 +523,8 @@ module BSON
       len_pos = buf.position
       buf.put_int(0)
 
-      buf.put_int(val.length + 1)
-      self.class.serialize_cstr(buf, val)
+      buf.put_int(val.code.length + 1)
+      self.class.serialize_cstr(buf, val.code)
       buf.put_array(BSON_CODER.new.serialize(val.scope).to_a)
 
       end_pos = buf.position

@@ -378,7 +378,12 @@ public class RubyBSONEncoder extends BSONEncoder {
         int temp = _buf.getPosition();
         _buf.writeInt( 0 );
 
-        _putValueString( code.toString() );
+        String code_string = (String)JavaEmbedUtils.invokeMethod(_runtime, code,
+            "code", new Object[] {}, Object.class);
+
+        System.out.println(code_string);
+
+        _putValueString( code_string );
 
         putObject( (RubyObject)JavaEmbedUtils.invokeMethod(_runtime, code, "scope", new Object[] {}, Object.class) );
 
