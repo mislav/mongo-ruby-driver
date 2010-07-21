@@ -659,6 +659,7 @@ class DBAPITest < Test::Unit::TestCase
     assert_raise BSON::InvalidKeyName do
       @@coll.insert({"$hello" => "world"})
     end
+
     assert_raise BSON::InvalidKeyName do
       @@coll.insert({"hello" => {"$hello" => "world"}})
     end
