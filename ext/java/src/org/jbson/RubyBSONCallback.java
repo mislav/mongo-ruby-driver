@@ -32,12 +32,15 @@ public class RubyBSONCallback implements BSONCallback {
     private final LinkedList<RubyObject> _stack = new LinkedList<RubyObject>();
     private final LinkedList<String> _nameStack = new LinkedList<String>();
     private Ruby _runtime;
+    
+    static final HashMap<Ruby, HashMap> _runtimeCache = new HashMap<Ruby, HashMap>();
+    
 
     public RubyBSONCallback(Ruby runtime) {
-      _runtime = runtime;
-      _rbclsOrderedHash = _runtime.getClassFromPath( "BSON::OrderedHash" );
-      _rbclsDBRef       = _runtime.getClassFromPath( "BSON::DBRef" );
-      _rbclsCode        = _runtime.getClassFromPath( "BSON::Code" );
+      _runtime          = runtime;
+      _rbclsOrderedHash = _lookupConstant( _runtime, "BSON::OrderedHash" );
+      _rbclsDBRef       = _lookupConstant( _runtime, "BSON::DBRef" );
+      _rbclsCode        = _lookupConstant( _runtime, "BSON::Code" );
     }
 
     public BSONCallback createBSONCallback(){
@@ -355,5 +358,30 @@ public class RubyBSONCallback implements BSONCallback {
 
     protected boolean isStackEmpty() {
       return _stack.size() < 1;
+    }
+
+    static final HashMap<String, Object> _getRuntimeCache(Ruby runtime) {
+      // each JRuby runtime may have different objects for these constants,
+      // so cache them separately for each runtime
+      @SuppressWarnings("unchecked") // aargh! Java!
+      HashMap<String, Object> cache = _runtimeCache.get( runtime );
+
+      if(cache == null) {
+        cache = new HashMap<String, Object>();
+        _runtimeCache.put( runtime, cache );
+      }
+      return cache;
+    }
+
+    static final RubyModule _lookupConstant(Ruby runtime, String name)
+    {
+      HashMap<String, Object> cache = _getRuntimeCache( runtime );
+      RubyModule module = (RubyModule) cache.get( name );
+
+      if(module == null && !cache.containsKey( name )) {
+        module = runtime.getClassFromPath( name );
+        cache.put( (String)name, (Object)module );
+      }
+      return module;
     }
 }
