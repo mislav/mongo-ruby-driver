@@ -39,6 +39,7 @@ import org.jruby.java.addons.ArrayJavaAddons;
 public class RubyBSONEncoder extends BSONEncoder {
 
     static final boolean DEBUG = false;
+    static final Map _runtimeCache = new HashMap();
 
     private Ruby _runtime;
 
@@ -47,19 +48,27 @@ public class RubyBSONEncoder extends BSONEncoder {
     private RubyModule _rbclsInvalidDocument;
     private RubyModule _rbclsRangeError;
     private RubySymbol _idAsSym;
+    private RubyString _idAsString;
+    private RubyString _tfAsString;
 
     private static final int BIT_SIZE = 64;
     private static final long MAX = (1L << (BIT_SIZE - 1)) - 1;
     private static final BigInteger LONG_MAX = BigInteger.valueOf(MAX);
     private static final BigInteger LONG_MIN = BigInteger.valueOf(-MAX - 1);
 
+
     public RubyBSONEncoder(Ruby runtime){
-        _runtime = runtime;
-        _rbclsByteBuffer = _runtime.getClassFromPath( "BSON::ByteBuffer" );
-        _rbclsDBRef = _runtime.getClassFromPath( "BSON::DBRef" );
-        _rbclsInvalidDocument = _runtime.getClassFromPath( "BSON::InvalidDocument" );
-        _rbclsRangeError = _runtime.getClassFromPath( "RangeError" );
-        _idAsSym = _runtime.newSymbol( "_id" );
+      _runtime = runtime;
+      _rbclsByteBuffer = _lookupConstant( _runtime, "BSON::ByteBuffer" );
+      _rbclsDBRef = _lookupConstant( _runtime, "BSON::DBRef" );
+      _rbclsInvalidDocument = _lookupConstant( _runtime, "BSON::InvalidDocument" );
+      _rbclsRangeError = _lookupConstant( _runtime, "RangeError" );
+      _idAsSym = _lookupSymbol( _runtime, "_id" );
+      _tfAsString = _lookupString( _runtime, "_transientFields" );
+
+      if(_idAsString == null) {
+          _idAsString = _runtime.newString( "_id" );
+      }
     }
 
     // Encode returns a BSON::ByteBuffer
@@ -146,13 +155,13 @@ public class RubyBSONEncoder extends BSONEncoder {
             if ( rewriteID ) {
 
                 if (  _rbHashHasKey( (RubyHash)o, "_id" ) ) {
-                    _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _runtime.newString("_id") ) );
+                    _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _idAsString ) );
                 }
                 else if ( ( _rbHashHasKey( (RubyHash)o, _idAsSym )) ) {
                     _putObjectField( "_id" , _rbHashGet( (RubyHash)o, _idAsSym ) );
                 }
 
-                RubyObject temp = (RubyObject)_rbHashGet( (RubyHash)o, _runtime.newString("_transientFields") );
+                RubyObject temp = (RubyObject)_rbHashGet( (RubyHash)o, _tfAsString );
                 if ( temp instanceof RubyArray )
                     transientFields = (RubyArray)temp;
             }
@@ -240,6 +249,10 @@ public class RubyBSONEncoder extends BSONEncoder {
         else if ( val instanceof RubyFloat ) {
             double jval = ((RubyFloat)val).getValue();
             putNumber(name, (Number)jval );
+        }
+        
+        else if ( val instanceof Double ) {
+            putNumber(name, (Number)val);
         }
 
         // TODO: Clean up
@@ -681,5 +694,53 @@ public class RubyBSONEncoder extends BSONEncoder {
     private CharBuffer _stringC = CharBuffer.wrap( new char[256 + 1] );
     private ByteBuffer _stringB = ByteBuffer.wrap( new byte[1024 + 1] );
     private CharsetEncoder _encoder = Charset.forName( "UTF-8" ).newEncoder();
+
+    static final Map _getRuntimeCache(Ruby runtime) {
+      // each JRuby runtime may have different objects for these constants,
+      // so cache them separately for each runtime
+      Map cache = (Map) _runtimeCache.get( runtime );
+
+      if(cache == null) {
+        cache = new HashMap();
+        _runtimeCache.put( runtime, cache );
+      }
+      return cache;
+    }
+
+    static final RubyModule _lookupConstant(Ruby runtime, String name)
+    {
+      Map cache = (Map) _getRuntimeCache( runtime );
+      RubyModule module = (RubyModule) cache.get( name );
+
+      if(module == null && !cache.containsKey( name )) {
+        module = runtime.getClassFromPath( name );
+        cache.put( name, module );
+      }
+      return module;
+    }
+
+    static final RubySymbol _lookupSymbol(Ruby runtime, String name)
+    {
+      Map cache = (Map) _getRuntimeCache( runtime );
+      RubySymbol symbol = (RubySymbol) cache.get( name );
+
+      if(symbol == null && !cache.containsKey( name )) {
+        symbol = runtime.newSymbol( name );
+        cache.put( name, symbol );
+      }
+      return symbol;
+    }
+
+    static final RubyString _lookupString(Ruby runtime, String name)
+    {
+      Map cache = (Map) _getRuntimeCache( runtime );
+      RubyString string = (RubyString) cache.get( name );
+
+      if(string == null && !cache.containsKey( name )) {
+        string = runtime.newString( name );
+        cache.put( name, string );
+      }
+      return string;
+    }
 
 }
