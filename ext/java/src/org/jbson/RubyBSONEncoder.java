@@ -227,59 +227,26 @@ public class RubyBSONEncoder extends BSONEncoder {
             return;
         }
 
-        if ( val instanceof RubyNil )
-            putNull(name);
-
-        else if ( val instanceof RubyTime ) {
-            Date jval = ((RubyTime)val).getJavaDate();
-            putDate( name , jval );
-        }
-
-        // TODO: Clean up
-        else if ( val instanceof RubyFixnum ) {
-            long jval = ((RubyFixnum)val).getLongValue();
-            if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
-                putNumber(name, (int)jval );
-            }
-            else
-                putNumber(name, (Number)jval );
-        }
-
-        // TODO: Clean up
-        else if ( val instanceof RubyFloat ) {
-            double jval = ((RubyFloat)val).getValue();
-            putNumber(name, (Number)jval );
-        }
-        
-        else if ( val instanceof Double ) {
-            putNumber(name, (Number)val);
-        }
+        if ( val instanceof String )
+            putString(name, val.toString() );
 
         // TODO: Clean up
         else if ( val instanceof Number ) {
-            long jval = ((Number)val).longValue();
-            if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
-                putNumber(name, (int)jval );
-            }
-            else
-                putNumber(name, (Number)jval );
+            if ( val instanceof Double ) {
+                  putNumber(name, (Number)val);
+              }
+              else {
+                 long jval = ((Number)val).longValue();
+                  if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
+                      putNumber(name, (int)jval );
+                  }
+                  else
+                      putNumber(name, (Number)jval );
+              }
         }
-
-        else if ( val instanceof RubyString ) {
-            putRubyString(name, ((RubyString)val).getUnicodeValue() );
-        }
-
-        else if ( val instanceof String )
-            putString(name, val.toString() );
-
-        else if ( val instanceof RubyBoolean )
-            putBoolean(name, (Boolean)((RubyBoolean)val).toJava(Boolean.class));
 
         else if ( val instanceof Boolean )
             putBoolean(name, (Boolean)val);
-
-        else if ( val instanceof RubyRegexp )
-            putRubyRegexp(name, (RubyRegexp)val );
 
         else if ( val instanceof Map )
             putMap( name , (Map)val );
@@ -293,58 +260,103 @@ public class RubyBSONEncoder extends BSONEncoder {
         else if ( val.getClass().isArray() )
             putIterable( name , Arrays.asList( (Object[])val ) );
 
-        else if (val instanceof RubySymbol) {
-            putSymbol(name, new Symbol(val.toString()));
-        }
+        else if ( val instanceof RubyObject ) {
 
-        else if (val instanceof RubyBignum) {
-            BigInteger big = ((RubyBignum)val).getValue();
-            if( big.compareTo(LONG_MAX) > 0 || big.compareTo(LONG_MIN) < 0 ) {
-                _rbRaise( (RubyClass)_rbclsRangeError , "MongoDB can only handle 8-byte ints" );
+            if ( val instanceof RubyString ) {
+                putRubyString(name, ((RubyString)val).getUnicodeValue() );
             }
-            else {
-                long jval = big.longValue();
+
+            else if (val instanceof RubySymbol) {
+                putSymbol(name, new Symbol(val.toString()));
+            }
+
+            // TODO: Clean up
+            else if ( val instanceof RubyFixnum ) {
+                long jval = ((RubyFixnum)val).getLongValue();
+                if (jval > Integer.MIN_VALUE && jval < Integer.MAX_VALUE) {
+                    putNumber(name, (int)jval );
+                }
+                else
+                    putNumber(name, (Number)jval );
+            }
+
+            // TODO: Clean up
+            else if ( val instanceof RubyFloat ) {
+                double jval = ((RubyFloat)val).getValue();
                 putNumber(name, (Number)jval );
             }
+
+            else if ( val instanceof RubyNil )
+                putNull(name);
+
+            else if ( val instanceof RubyTime ) {
+                Date jval = ((RubyTime)val).getJavaDate();
+                putDate( name , jval );
+            }
+
+            else if ( val instanceof RubyBoolean )
+                putBoolean(name, (Boolean)((RubyBoolean)val).toJava(Boolean.class));
+
+            else if ( val instanceof RubyRegexp )
+                putRubyRegexp(name, (RubyRegexp)val );
+
+            else if (val instanceof RubyBignum) {
+                BigInteger big = ((RubyBignum)val).getValue();
+                if( big.compareTo(LONG_MAX) > 0 || big.compareTo(LONG_MIN) < 0 ) {
+                    _rbRaise( (RubyClass)_rbclsRangeError , "MongoDB can only handle 8-byte ints" );
+                }
+                else {
+                    long jval = big.longValue();
+                    putNumber(name, (Number)jval );
+                }
+            }
+
+            // This is where we handle special types defined in the Ruby BSON.
+            else {
+              String klass = JavaEmbedUtils.invokeMethod(_runtime, val,
+                  "class", new Object[] {}, Object.class).toString();
+
+              if( klass.equals( "BSON::ObjectID" ) ) {
+                  putRubyObjectId(name, (RubyObject)val );
+              }
+              else if ( klass.equals( "BSON::Code" ) ) {
+                  putRubyCodeWScope(name, (RubyObject)val );
+              }
+              else if ( klass.equals( "BSON::Binary" ) ) {
+                  putRubyBinary( name , (RubyObject)val );
+              }
+              else if ( klass.equals("BSON::MinKey") ) {
+                  _put( MINKEY, name );
+              }
+              else if ( klass.equals("BSON::MaxKey") ) {
+                  _put( MAXKEY, name );
+              }
+              else if ( klass.equals("BSON::DBRef") ) {
+                  RubyHash ref = (RubyHash)JavaEmbedUtils.invokeMethod(_runtime, val,
+                      "to_hash", new Object[] {}, Object.class);
+                  putMap( name , (Map)ref );
+              }
+              else if ( klass.equals("Date") || klass.equals("DateTime") ||
+                  klass.equals("ActiveSupport::TimeWithZone") ) {
+
+                  _rbRaise( (RubyClass)_rbclsInvalidDocument,
+                      klass + " is not currently supported; use a UTC Time instance instead.");
+              }
+              else {
+                  _rbRaise( (RubyClass)_rbclsInvalidDocument,
+                    "Cannot serialize " + klass + " as a BSON type; " +
+                    "it either isn't supported or won't translate to BSON.");
+
+              }
+          }
         }
+        else {
+            String klass = JavaEmbedUtils.invokeMethod(_runtime, val,
+                "class", new Object[] {}, Object.class).toString();
 
-        // This is where we handle special types defined in the Ruby BSON.
-        else if ( val instanceof RubyObject ) {
-          String klass = JavaEmbedUtils.invokeMethod(_runtime, val,
-              "class", new Object[] {}, Object.class).toString();
-
-          if( klass.equals( "BSON::ObjectID" ) ) {
-              putRubyObjectId(name, (RubyObject)val );
-          }
-          else if ( klass.equals( "BSON::Code" ) ) {
-              putRubyCodeWScope(name, (RubyObject)val );
-          }
-          else if ( klass.equals( "BSON::Binary" ) ) {
-              putRubyBinary( name , (RubyObject)val );
-          }
-          else if ( klass.equals("BSON::MinKey") ) {
-              _put( MINKEY, name );
-          }
-          else if ( klass.equals("BSON::MaxKey") ) {
-              _put( MAXKEY, name );
-          }
-          else if ( klass.equals("BSON::DBRef") ) {
-              RubyHash ref = (RubyHash)JavaEmbedUtils.invokeMethod(_runtime, val,
-                  "to_hash", new Object[] {}, Object.class);
-              putMap( name , (Map)ref );
-          }
-          else if ( klass.equals("Date") || klass.equals("DateTime") ||
-              klass.equals("ActiveSupport::TimeWithZone") ) {
-
-              _rbRaise( (RubyClass)_rbclsInvalidDocument,
-                  klass + " is not currently supported; use a UTC Time instance instead.");
-          }
-          else {
               _rbRaise( (RubyClass)_rbclsInvalidDocument,
                 "Cannot serialize " + klass + " as a BSON type; " +
                 "it either isn't supported or won't translate to BSON.");
-
-          }
         }
     }
 
