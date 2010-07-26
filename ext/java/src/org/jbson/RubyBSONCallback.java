@@ -27,6 +27,10 @@ public class RubyBSONCallback implements BSONCallback {
 
     private RubyHash _root;
     private RubyModule _rbclsOrderedHash;
+    private RubyModule _rbclsObjectId;
+    private RubyModule _rbclsBinary;
+    private RubyModule _rbclsMinKey;
+    private RubyModule _rbclsMaxKey;
     private RubyModule _rbclsDBRef;
     private RubyModule _rbclsCode;
     private final LinkedList<RubyObject> _stack = new LinkedList<RubyObject>();
@@ -39,8 +43,12 @@ public class RubyBSONCallback implements BSONCallback {
     public RubyBSONCallback(Ruby runtime) {
       _runtime          = runtime;
       _rbclsOrderedHash = _lookupConstant( _runtime, "BSON::OrderedHash" );
+      _rbclsObjectId    = _lookupConstant( _runtime, "BSON::ObjectID" );
+      _rbclsBinary      = _lookupConstant( _runtime, "BSON::Binary" );
       _rbclsDBRef       = _lookupConstant( _runtime, "BSON::DBRef" );
       _rbclsCode        = _lookupConstant( _runtime, "BSON::Code" );
+      _rbclsMinKey      = _lookupConstant( _runtime, "BSON::MinKey" );
+      _rbclsMaxKey      = _lookupConstant( _runtime, "BSON::MaxKey" );
     }
 
     public BSONCallback createBSONCallback(){
@@ -107,24 +115,7 @@ public class RubyBSONCallback implements BSONCallback {
           new Object[] { (IRubyObject)rkey, obj }, Object.class);
     }
 
-    // TODO: Extract these helper methods into a module?
-    // Helper method for checking whether a Ruby hash has a certain key.
-    private boolean _rbHashHasKey(RubyHash hash, String key) {
-        RubyBoolean b = hash.has_key_p( _runtime.newString( key ) );
-        return b == _runtime.getTrue();
-    }
-
-    // Helper method for getting a value from a Ruby hash.
-    private IRubyObject _rbHashGet(RubyHash hash, Object key) {
-        if (key instanceof String) {
-            return hash.op_aref( _runtime.getCurrentContext(), _runtime.newString((String)key) );
-        }
-        else {
-            return hash.op_aref( _runtime.getCurrentContext(), (RubyObject)key );
-        }
-    }
-
-    public void writeRubyArray(String key, RubyArray array, IRubyObject obj) {
+        public void writeRubyArray(String key, RubyArray array, IRubyObject obj) {
         Long rkey = Long.parseLong(key);
         RubyFixnum index = new RubyFixnum(_runtime, rkey);
         array.aset((IRubyObject)index, obj);
@@ -194,17 +185,13 @@ public class RubyBSONCallback implements BSONCallback {
     }
 
     public void gotMinKey( String name ){
-        RubyModule cls = _runtime.getClassFromPath("BSON::MinKey");
-
-        Object minkey = JavaEmbedUtils.invokeMethod(_runtime, cls, "new", new Object[] {}, Object.class);
+        Object minkey = JavaEmbedUtils.invokeMethod(_runtime, _rbclsMinKey, "new", new Object[] {}, Object.class);
 
         _put( name, (RubyObject)minkey);
     }
 
     public void gotMaxKey( String name ){
-        RubyModule cls = _runtime.getClassFromPath("BSON::MaxKey");
-
-        Object maxkey = JavaEmbedUtils.invokeMethod(_runtime, cls, "new", new Object[] {}, Object.class);
+        Object maxkey = JavaEmbedUtils.invokeMethod(_runtime, _rbclsMaxKey, "new", new Object[] {}, Object.class);
 
         _put( name, (RubyObject)maxkey);
     }
@@ -234,7 +221,6 @@ public class RubyBSONCallback implements BSONCallback {
         _put( name , time );
     }
 
-    // TODO: Make this more efficient. Not horrible, but the flags part could be better.
     public void gotRegex( String name , String pattern , String flags ){
       int f = 0;
       ByteList b = new ByteList(pattern.getBytes());
@@ -280,9 +266,7 @@ public class RubyBSONCallback implements BSONCallback {
        IRubyObject arg = (IRubyObject)RubyString.newString(_runtime, id.toString());
        Object[] args = new Object[] { arg };
 
-       RubyModule cls = _runtime.getClassFromPath("BSON::ObjectID");
-
-       Object result = JavaEmbedUtils.invokeMethod(_runtime, cls, "from_string", args, Object.class);
+       Object result = JavaEmbedUtils.invokeMethod(_runtime, _rbclsObjectId, "from_string", args, Object.class);
 
         _put( name, (RubyObject)result );
     }
@@ -309,9 +293,7 @@ public class RubyBSONCallback implements BSONCallback {
 
         Object[] args = new Object[] { a, 2 };
 
-        RubyModule cls = _runtime.getClassFromPath("BSON::Binary");
-
-        Object result = JavaEmbedUtils.invokeMethod(_runtime, cls, "new", args, Object.class);
+        Object result = JavaEmbedUtils.invokeMethod(_runtime, _rbclsBinary, "new", args, Object.class);
 
         _put( name, (RubyObject)result );
     }
@@ -322,9 +304,7 @@ public class RubyBSONCallback implements BSONCallback {
 
         Object[] args = new Object[] { a, RubyFixnum.newFixnum(_runtime, Math.abs( type )) };
 
-        RubyModule cls = _runtime.getClassFromPath("BSON::Binary");
-
-        Object result = JavaEmbedUtils.invokeMethod(_runtime, cls, "new", args, Object.class);
+        Object result = JavaEmbedUtils.invokeMethod(_runtime, _rbclsBinary, "new", args, Object.class);
 
         _put( name, (RubyObject)result );
     }
@@ -358,6 +338,22 @@ public class RubyBSONCallback implements BSONCallback {
 
     protected boolean isStackEmpty() {
       return _stack.size() < 1;
+    }
+
+    // Helper method for checking whether a Ruby hash has a certain key.
+    private boolean _rbHashHasKey(RubyHash hash, String key) {
+        RubyBoolean b = hash.has_key_p( _runtime.newString( key ) );
+        return b == _runtime.getTrue();
+    }
+
+    // Helper method for getting a value from a Ruby hash.
+    private IRubyObject _rbHashGet(RubyHash hash, Object key) {
+        if (key instanceof String) {
+            return hash.op_aref( _runtime.getCurrentContext(), _runtime.newString((String)key) );
+        }
+        else {
+            return hash.op_aref( _runtime.getCurrentContext(), (RubyObject)key );
+        }
     }
 
     static final HashMap<String, Object> _getRuntimeCache(Ruby runtime) {
